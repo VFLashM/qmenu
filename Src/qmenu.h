@@ -9,18 +9,6 @@
 #include <QKeyEvent>
 #include <QApplication>
 
-class LineEdit : public QLineEdit {
-    Q_OBJECT
-signals:
-    void changed();
-
-private:
-    void keyPressEvent(QKeyEvent* event) {
-        QLineEdit::keyPressEvent(event);
-        emit changed();
-    }
-};
-
 class Menu : public QMainWindow {
     Q_OBJECT
     typedef QPair<QString, QString> QStringPair;
@@ -56,8 +44,9 @@ public:
 
         _rebuildList();
 
-        connect(&_lineEdit, SIGNAL(changed()), this, SLOT(_rebuildList()));
+        connect(&_lineEdit, SIGNAL(textChanged(const QString&)), this, SLOT(_rebuildList()));
         connect(&_lineEdit, SIGNAL(editingFinished()), this, SLOT(_done()));
+        connect(&_listWidget, SIGNAL(itemActivated(QListWidgetItem*)), this, SLOT(_done()));
     }
 
 private slots:
@@ -155,6 +144,8 @@ private:
             _listWidget.setCurrentRow(std::min(_listWidget.count(), _listWidget.currentRow() + 1));
         } else if (event->key() == Qt::Key_Escape) {
             QApplication::exit(0);
+        } else if (event->key() == Qt::Key_G && (event->modifiers() & Qt::ControlModifier)) {
+            QApplication::exit(0);
         }
         QMainWindow::keyPressEvent(event);
     }
@@ -162,7 +153,7 @@ private:
     QWidget _containerWidget;
     QString _filter;
     QListWidget _listWidget;
-    LineEdit _lineEdit;
+    QLineEdit _lineEdit;
     QList<QStringPair> _items;
     QMap<QListWidgetItem*, QString> _widgetToContent;
 };

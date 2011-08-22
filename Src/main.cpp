@@ -34,6 +34,7 @@ int main(int argc, char** argv) {
     
     Menu menu(500, 500, values, separator);
     menu.setVisible(true);
+	menu.activateWindow();
 
     return app.exec();
 }

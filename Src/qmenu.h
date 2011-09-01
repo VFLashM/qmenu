@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdio.h>
+
 #include <QMainWindow>
 #include <QListWidget>
 #include <QListWidgetItem>
@@ -56,7 +58,7 @@ private slots:
             if (!item) {
                 item = _listWidget.item(0);
             }
-            printf(qPrintable(_widgetToContent[item]));
+            printf("%s", qPrintable(_widgetToContent[item]));
         }
         QApplication::exit(0);
     }

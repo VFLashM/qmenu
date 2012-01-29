@@ -17,11 +17,8 @@ class Menu : public QMainWindow {
 public:
     Menu(int width, int height, const QList<QString>& values, const char* separator = NULL)
         : QMainWindow(0, Qt::Popup)
+		, _separator(separator)
     {
-        if (values.size() == 0) {
-            QApplication::exit(0);
-        }
-
         setCentralWidget(&_containerWidget);
 
         QVBoxLayout* layout = new QVBoxLayout();
@@ -30,26 +27,40 @@ public:
         layout->addWidget(&_lineEdit);
         _containerWidget.setLayout(layout);
 
-        foreach(const QString& val, values) {
-            if (separator && val.contains(separator)) {
-                int idx = val.indexOf(separator);
-                _items.append(QStringPair(val.left(idx), val.right(val.size() - idx - strlen(separator))));
-            } else {
-                _items.append(QStringPair(val, val));
-            }
-        }
+		addItems(values);
 
         resize(width, height);
 
         _listWidget.setFocusPolicy(Qt::NoFocus);
         _lineEdit.setFocus(Qt::OtherFocusReason);
 
-        _rebuildList();
-
         connect(&_lineEdit, SIGNAL(textChanged(const QString&)), this, SLOT(_rebuildList()));
         connect(&_lineEdit, SIGNAL(editingFinished()), this, SLOT(_done()));
         connect(&_listWidget, SIGNAL(itemActivated(QListWidgetItem*)), this, SLOT(_done()));
     }
+
+	void addItems(const QList<QString>& values) {
+		QList<QStringPair> items;
+		foreach(const QString& val, values) {
+			QStringPair p = _value2pair(val);
+			if (!_items.contains(p)) {
+				items.append(p);
+			}
+        }
+		_items.append(items);
+		_addItemsToWidget(items);
+	}
+
+public slots:
+	void addItem(const QString& item) {
+		QStringPair p = _value2pair(item);
+		if (!_items.contains(p)) {
+			_items.append(p);
+			QList<QStringPair> singleItemList;
+			singleItemList.append(p);
+			_addItemsToWidget(singleItemList);
+		}
+	}
 
 private slots:
     void _done() {
@@ -69,23 +80,7 @@ private slots:
             _listWidget.clear();
             _widgetToContent.clear();
 
-            QList<const QStringPair*> matched;
-
-            foreach (const QStringPair& pair, _items) {
-                _process(matched, pair, pair.second, &_match1);
-            }
-
-            foreach (const QStringPair& pair, _items) {
-                _process(matched, pair, pair.second, &_match2);
-            }
-
-            foreach (const QStringPair& pair, _items) {
-                _process(matched, pair, pair.first, &_match1);
-            }
-
-            foreach (const QStringPair& pair, _items) {
-                _process(matched, pair, pair.first, &_match2);
-            }
+            _addItemsToWidget(_items);
             
             if (_listWidget.count() > 0) {
                 _listWidget.setCurrentRow(0);
@@ -94,6 +89,31 @@ private slots:
     }
 
 private:
+	QStringPair _value2pair(const QString& val) {
+		if (_separator && val.contains(_separator)) {
+			int idx = val.indexOf(_separator);
+			return QStringPair(val.left(idx), val.right(val.size() - idx - strlen(_separator)));
+		} else {
+			return QStringPair(val, val);
+		}
+	}
+	
+	void _addItemsToWidget(QList<QStringPair>& items) {
+		QList<const QStringPair*> matched;
+		foreach (const QStringPair& pair, items) {
+			_process(matched, pair, pair.second, &_match1);
+		}
+		foreach (const QStringPair& pair, items) {
+			_process(matched, pair, pair.second, &_match2);
+		}
+		foreach (const QStringPair& pair, items) {
+			_process(matched, pair, pair.first, &_match1);
+		}
+		foreach (const QStringPair& pair, items) {
+			_process(matched, pair, pair.first, &_match2);
+		}
+	}
+	
     static bool _match1(const QString& filter, QString text) {
         if (filter.isEmpty()) {
             return true;
@@ -152,6 +172,7 @@ private:
         QMainWindow::keyPressEvent(event);
     }
 
+	const char* _separator;
     QWidget _containerWidget;
     QString _filter;
     QListWidget _listWidget;

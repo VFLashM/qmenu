@@ -16,11 +16,12 @@ class Menu : public QMainWindow {
     Q_OBJECT
     typedef QPair<QString, QString> QStringPair;
 public:
-    Menu(int width, int height, const QList<QString>& values, const char* separator = NULL, const char* cacheFile = NULL)
+    Menu(int width, int height, const QList<QString>& values, const char* separator = NULL, const char* cacheFile = NULL, unsigned int maxListItems = -1)
         : QMainWindow(0, Qt::SplashScreen | Qt::WindowStaysOnTopHint)
 		, _chosen(false)
 		, _separator(separator)
 		, _cacheFile(cacheFile)
+		, _maxListItems(maxListItems)
     {
 		setAttribute(Qt::WA_QuitOnClose, true);
         setCentralWidget(&_containerWidget);
@@ -158,18 +159,23 @@ private:
 	}
 	
 	void _addItemsToWidget(QList<QStringPair>& items) {
+		if (_listWidget.count() >= _maxListItems) return;
 		QList<const QStringPair*> matched;
 		foreach (const QStringPair& pair, items) {
 			_process(matched, pair, pair.second, &_match1);
+			if (_listWidget.count() >= _maxListItems) return;
 		}
 		foreach (const QStringPair& pair, items) {
 			_process(matched, pair, pair.second, &_match2);
+			if (_listWidget.count() >= _maxListItems) return;
 		}
 		foreach (const QStringPair& pair, items) {
 			_process(matched, pair, pair.first, &_match1);
+			if (_listWidget.count() >= _maxListItems) return;
 		}
 		foreach (const QStringPair& pair, items) {
 			_process(matched, pair, pair.first, &_match2);
+			if (_listWidget.count() >= _maxListItems) return;
 		}
 	}
 	
@@ -233,6 +239,7 @@ private:
 	bool _chosen;
 	const char* _separator;
 	const char* _cacheFile;
+	unsigned int _maxListItems;
     QWidget _containerWidget;
     QString _filter;
     QListWidget _listWidget;

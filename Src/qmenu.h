@@ -21,6 +21,7 @@ public:
 		, _separator(separator)
 		, _cacheFile(cacheFile)
     {
+		setAttribute(Qt::WA_QuitOnClose, true);
         setCentralWidget(&_containerWidget);
 
         QVBoxLayout* layout = new QVBoxLayout();
@@ -212,9 +213,11 @@ private:
         } else if (event->key() == Qt::Key_Down) {
             _listWidget.setCurrentRow(std::min(_listWidget.count(), _listWidget.currentRow() + 1));
         } else if (event->key() == Qt::Key_Escape) {
-            QApplication::exit(0);
+			emit onDone();
+			close();
         } else if (event->key() == Qt::Key_G && (event->modifiers() & Qt::ControlModifier)) {
-            QApplication::exit(0);
+			emit onDone();
+			close();
         }
         QMainWindow::keyPressEvent(event);
     }

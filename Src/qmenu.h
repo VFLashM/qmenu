@@ -10,6 +10,7 @@
 #include <QVBoxLayout>
 #include <QKeyEvent>
 #include <QApplication>
+#include <QTextStream>
 
 class Menu : public QMainWindow {
     Q_OBJECT
@@ -28,29 +29,17 @@ public:
         layout->addWidget(&_lineEdit);
         _containerWidget.setLayout(layout);
 
-		addItems(values);
-
         resize(width, height);
-
         _listWidget.setFocusPolicy(Qt::NoFocus);
         _lineEdit.setFocus(Qt::OtherFocusReason);
+
+		_loadCache();
+		_addItems(values, false);
 
         connect(&_lineEdit, SIGNAL(textChanged(const QString&)), this, SLOT(_rebuildList()));
         connect(&_lineEdit, SIGNAL(editingFinished()), this, SLOT(_done()));
         connect(&_listWidget, SIGNAL(itemActivated(QListWidgetItem*)), this, SLOT(_done()));
-    }
-
-	void addItems(const QList<QString>& values) {
-		QList<QStringPair> items;
-		foreach(const QString& val, values) {
-			QStringPair p = _value2pair(val);
-			if (!_items.contains(p)) {
-				items.append(p);
-			}
-        }
-		_items.append(items);
-		_addItemsToWidget(items);
-	}
+    }	
 
 signals:
 	void onDone();
@@ -64,11 +53,23 @@ public slots:
 			singleItemList.append(p);
 			_addItemsToWidget(singleItemList);
 		}
+
+		if (!_nonCacheItems.contains(item)) {
+			_nonCacheItems.append(item);
+		}
 	}
 
 	void flushCache() {
 		if (!_cacheFile) {
 			return;
+		}
+
+		QFile cache(_cacheFile);
+		if (cache.open(QFile::WriteOnly)) {
+			QTextStream outs(&cache);
+			foreach(const QString& item, _nonCacheItems) {
+				outs << item << "\n";
+			}
 		}
 	}
 
@@ -100,6 +101,42 @@ private slots:
     }
 
 private:
+	void _addItems(const QList<QString>& values, bool fromCache) {
+		QList<QStringPair> items;
+		foreach(const QString& val, values) {
+			QStringPair p = _value2pair(val);
+			if (!_items.contains(p)) {
+				items.append(p);
+			}
+			if (!fromCache) {
+				if (!_nonCacheItems.contains(val)) {
+					_nonCacheItems.append(val);
+				}
+			}
+        }
+		_items.append(items);
+		_addItemsToWidget(items);
+	}
+	
+	void _loadCache() {
+		if (_cacheFile) {
+			QFile cache(_cacheFile);
+			if (cache.open(QFile::ReadOnly)) {
+				QTextStream ins(&cache);
+				QList<QString> lines;
+				while(true) {
+					QString line = ins.readLine();
+					if (line.isNull()) {
+						break;
+					} else {
+						lines.append(line);
+					}
+				}
+				_addItems(lines, true);
+			}
+		}
+	}
+	
 	QStringPair _value2pair(const QString& val) {
 		if (_separator && val.contains(_separator)) {
 			int idx = val.indexOf(_separator);
@@ -169,7 +206,6 @@ private:
         }
     }
 
-private:
     void keyPressEvent(QKeyEvent* event) {
         if (event->key() == Qt::Key_Up) {
             _listWidget.setCurrentRow(std::max(0, _listWidget.currentRow() - 1));
@@ -189,6 +225,7 @@ private:
     QString _filter;
     QListWidget _listWidget;
     QLineEdit _lineEdit;
+	QList<QString> _nonCacheItems;
     QList<QStringPair> _items;
     QMap<QListWidgetItem*, QString> _widgetToContent;
 };

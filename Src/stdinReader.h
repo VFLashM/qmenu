@@ -16,7 +16,9 @@ public:
 			QString qstr = str.c_str();
 			emit onNewItem(qstr);
 		}
-		emit onDone();
+		if (_alive) {
+			emit onDone();
+		}
 	}
 	
 signals:

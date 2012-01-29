@@ -17,7 +17,8 @@ class Menu : public QMainWindow {
     typedef QPair<QString, QString> QStringPair;
 public:
     Menu(int width, int height, const QList<QString>& values, const char* separator = NULL, const char* cacheFile = NULL)
-        : QMainWindow(0, Qt::Popup)
+        : QMainWindow(0, Qt::SplashScreen | Qt::WindowStaysOnTopHint)
+		, _chosen(false)
 		, _separator(separator)
 		, _cacheFile(cacheFile)
     {
@@ -76,15 +77,16 @@ public slots:
 
 private slots:
     void _done() {
-        if (_listWidget.count() > 0) {
-            QListWidgetItem* item = _listWidget.currentItem();
-            if (!item) {
-                item = _listWidget.item(0);
-            }
-            printf("%s", qPrintable(_widgetToContent[item]));
+		if (!_chosen) {
+			if (_listWidget.count() > 0) {
+				QListWidgetItem* item = _listWidget.currentItem();
+				if (!item) {
+					item = _listWidget.item(0);
+				}
+				printf("%s", qPrintable(_widgetToContent[item]));
+			}
+			_close();
 		}
-		emit onDone();
-		close();
     }
 
     void _rebuildList() {
@@ -102,6 +104,14 @@ private slots:
     }
 
 private:
+	void _close() {
+		if (!_chosen) {
+			_chosen = true;
+			emit onDone();
+			close();
+		}
+	}
+	
 	void _addItems(const QList<QString>& values, bool fromCache) {
 		QList<QStringPair> items;
 		foreach(const QString& val, values) {
@@ -213,15 +223,14 @@ private:
         } else if (event->key() == Qt::Key_Down) {
             _listWidget.setCurrentRow(std::min(_listWidget.count(), _listWidget.currentRow() + 1));
         } else if (event->key() == Qt::Key_Escape) {
-			emit onDone();
-			close();
+			_close();
         } else if (event->key() == Qt::Key_G && (event->modifiers() & Qt::ControlModifier)) {
-			emit onDone();
-			close();
+			_close();
         }
         QMainWindow::keyPressEvent(event);
     }
 
+	bool _chosen;
 	const char* _separator;
 	const char* _cacheFile;
     QWidget _containerWidget;

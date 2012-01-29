@@ -7,16 +7,27 @@
 class StdinReader : public QThread {
 	Q_OBJECT
 public:
+	StdinReader() : _alive(true) {}
+	
 	void run() {
-		while (std::cin) {
+		while (std::cin && _alive) {
 			std::string str;
 			std::cin >> str;
 			QString qstr = str.c_str();
 			emit onNewItem(qstr);
 		}
+		emit onDone();
 	}
+	
 signals:
 	void onNewItem(const QString& value);
+	void onDone();
+
+public slots:
+	void die() { _alive = false; }
+	
+private:
+	volatile bool _alive;
 };
 
 #endif /* _STDINREADER_H_ */

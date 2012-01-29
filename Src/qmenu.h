@@ -15,9 +15,10 @@ class Menu : public QMainWindow {
     Q_OBJECT
     typedef QPair<QString, QString> QStringPair;
 public:
-    Menu(int width, int height, const QList<QString>& values, const char* separator = NULL)
+    Menu(int width, int height, const QList<QString>& values, const char* separator = NULL, const char* cacheFile = NULL)
         : QMainWindow(0, Qt::Popup)
 		, _separator(separator)
+		, _cacheFile(cacheFile)
     {
         setCentralWidget(&_containerWidget);
 
@@ -51,6 +52,9 @@ public:
 		_addItemsToWidget(items);
 	}
 
+signals:
+	void onDone();
+
 public slots:
 	void addItem(const QString& item) {
 		QStringPair p = _value2pair(item);
@@ -62,6 +66,12 @@ public slots:
 		}
 	}
 
+	void flushCache() {
+		if (!_cacheFile) {
+			return;
+		}
+	}
+
 private slots:
     void _done() {
         if (_listWidget.count() > 0) {
@@ -70,8 +80,9 @@ private slots:
                 item = _listWidget.item(0);
             }
             printf("%s", qPrintable(_widgetToContent[item]));
-        }
-        QApplication::exit(0);
+		}
+		emit onDone();
+		close();
     }
 
     void _rebuildList() {
@@ -173,6 +184,7 @@ private:
     }
 
 	const char* _separator;
+	const char* _cacheFile;
     QWidget _containerWidget;
     QString _filter;
     QListWidget _listWidget;

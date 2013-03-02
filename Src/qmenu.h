@@ -23,6 +23,7 @@ public:
 		, _separator(separator)
 		, _cacheFile(cacheFile)
 		, _maxListItems(maxListItems)
+        , _maxWidth(_startingMaxWidth)
     {
 		setAttribute(Qt::WA_QuitOnClose, true);
         setCentralWidget(&_containerWidget);
@@ -95,6 +96,7 @@ private slots:
         if (_filter.isNull() || (_filter != _lineEdit.text())) {
             _filter = _lineEdit.text();
             _listWidget.clear();
+            _maxWidth = _startingMaxWidth;
             _widgetToContent.clear();
 
             _addItemsToWidget(_items);
@@ -158,26 +160,75 @@ private:
 			return QStringPair(val, val);
 		}
 	}
+
+    void _filterAndReorder(const QList<QStringPair>& items, QList<QStringPair>& dst) {
+        dst.clear();
+
+        foreach (const QStringPair& pair, items) {
+            if (!dst.contains(pair)) {
+                if (_match1(_filter, pair.second)) {
+                    dst.append(pair);
+                }
+            }
+        }
+
+        foreach (const QStringPair& pair, items) {
+            if (!dst.contains(pair)) {
+                if (_match2(_filter, pair.second)) {
+                    dst.append(pair);
+                }
+            }
+        }
+
+        foreach (const QStringPair& pair, items) {
+            if (!dst.contains(pair)) {
+                if (_match1(_filter, pair.first)) {
+                    dst.append(pair);
+                }
+            }
+        }
+
+        foreach (const QStringPair& pair, items) {
+            if (!dst.contains(pair)) {
+                if (_match2(_filter, pair.first)) {
+                    dst.append(pair);
+                }
+            }
+        }
+    }
 	
 	void _addItemsToWidget(QList<QStringPair>& items) {
-		if ((unsigned int)_listWidget.count() >= _maxListItems) return;
-		QList<const QStringPair*> matched;
-		foreach (const QStringPair& pair, items) {
-			_process(matched, pair, pair.second, &_match1);
-			if ((unsigned int)_listWidget.count() >= _maxListItems) return;
-		}
-		foreach (const QStringPair& pair, items) {
-			_process(matched, pair, pair.second, &_match2);
-			if ((unsigned int)_listWidget.count() >= _maxListItems) return;
-		}
-		foreach (const QStringPair& pair, items) {
-			_process(matched, pair, pair.first, &_match1);
-			if ((unsigned int)_listWidget.count() >= _maxListItems) return;
-		}
-		foreach (const QStringPair& pair, items) {
-			_process(matched, pair, pair.first, &_match2);
-			if ((unsigned int)_listWidget.count() >= _maxListItems) return;
-		}
+        if ((unsigned int)_listWidget.count() >= _maxListItems) return;
+        
+        QList<QStringPair> res;
+        _filterAndReorder(items, res);
+
+        foreach (const QStringPair& pair, res) {
+            _maxWidth = std::max(_maxWidth, pair.second.length());
+        }
+
+        foreach (const QStringPair& pair, res) {
+            if ((unsigned int)_listWidget.count() >= _maxListItems) return;
+
+            int marginSize = _maxWidth - pair.second.length();
+            QString margin(marginSize, ' ');
+            
+            QString text = pair.second + margin + " --> " + pair.first;
+            if (pair.second.isEmpty() && pair.first.isEmpty()) {
+                text = "";
+            }
+            
+            QListWidgetItem* item = new QListWidgetItem(text);
+
+            QFont font("Courier");
+            font.setStyleHint(QFont::Monospace);
+            font.setPointSize(8);
+            font.setFixedPitch(true);
+            item->setFont(font);
+            
+            _widgetToContent[item] = pair.first;
+            _listWidget.addItem(item);
+        }
 	}
 	
     static bool _match1(const QString& filter, QString text) {
@@ -212,18 +263,6 @@ private:
         return false;
     }
 
-    void _process(QList<const QStringPair*>& matched, const QStringPair& pair, const QString& value, bool (*matchFn)(const QString&, QString)) {
-        if (matched.contains(&pair)) {
-            return;
-        }
-        if ((*matchFn)(_filter, value)) {
-            matched.append(&pair);
-            QListWidgetItem* item = new QListWidgetItem(pair.second);
-            _widgetToContent[item] = pair.first;
-            _listWidget.addItem(item);
-        }
-    }
-
     void keyPressEvent(QKeyEvent* event) {
         if (event->key() == Qt::Key_Up) {
             _listWidget.setCurrentRow(std::max(0, _listWidget.currentRow() - 1));
@@ -247,5 +286,7 @@ private:
     QLineEdit _lineEdit;
 	QList<QString> _nonCacheItems;
     QList<QStringPair> _items;
+    static const int _startingMaxWidth = 32 ;
+    int _maxWidth;
     QMap<QListWidgetItem*, QString> _widgetToContent;
 };

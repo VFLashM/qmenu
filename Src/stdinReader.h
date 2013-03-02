@@ -26,18 +26,21 @@ public:
                         _got.clear();
                         emit onNewItem(item);
                     }
+                    break;
                 case 2:
                     {
                         MenuItem item(_got[0], _got[1]);
                         _got.clear();
                         emit onNewItem(item);
                     }
+                    break;
                 case 3:
                     {
                         MenuItem item(_got[0], _got[1], _got[2]);
                         _got.clear();
                         emit onNewItem(item);
                     }
+                    break;
                 default:
                     assert(false);
                 }

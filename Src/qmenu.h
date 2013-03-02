@@ -191,7 +191,7 @@ private:
 
         foreach (const MenuItem& pair, items) {
             if (!dst.contains(pair)) {
-                if (_match1(_filter, pair.result)) {
+                if (_match1(_filter, pair.hint)) {
                     dst.append(pair);
                 }
             }
@@ -199,7 +199,7 @@ private:
 
         foreach (const MenuItem& pair, items) {
             if (!dst.contains(pair)) {
-                if (_match2(_filter, pair.result)) {
+                if (_match2(_filter, pair.hint)) {
                     dst.append(pair);
                 }
             }

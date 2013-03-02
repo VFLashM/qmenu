@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
         }
     }
     
-    Menu menu(500, 500, QList<MenuItem>(), cacheFile, maxListItems);
+    Menu menu(800, 500, QList<MenuItem>(), cacheFile, maxListItems);
     menu.setVisible(true);
 	menu.activateWindow();
 

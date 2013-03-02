@@ -3,18 +3,45 @@
 
 #include <QThread>
 #include <iostream>
+#include <assert.h>
+#include "qmenu.h"
 
 class StdinReader : public QThread {
 	Q_OBJECT
 public:
-	StdinReader() : _alive(true) {}
+	StdinReader(int mode) : _alive(true), _mode(mode) {}
 	
 	void run() {
 		while (std::cin && _alive) {
 			std::string str;
 			std::cin >> str;
-			QString qstr = str.c_str();
-			emit onNewItem(qstr);
+            QString qstr = str.c_str();
+            _got.append(qstr);
+
+            if (_got.size() >= _mode) {
+                switch (_mode) {
+                case 1:
+                    {
+                        MenuItem item(_got[0]);
+                        _got.clear();
+                        emit onNewItem(item);
+                    }
+                case 2:
+                    {
+                        MenuItem item(_got[0], _got[1]);
+                        _got.clear();
+                        emit onNewItem(item);
+                    }
+                case 3:
+                    {
+                        MenuItem item(_got[0], _got[1], _got[2]);
+                        _got.clear();
+                        emit onNewItem(item);
+                    }
+                default:
+                    assert(false);
+                }
+            }
 		}
 		if (_alive) {
 			emit onDone();
@@ -22,7 +49,7 @@ public:
 	}
 	
 signals:
-	void onNewItem(const QString& value);
+	void onNewItem(const MenuItem& value);
 	void onDone();
 
 public slots:
@@ -30,6 +57,8 @@ public slots:
 	
 private:
 	volatile bool _alive;
+    const int _mode;
+    QList<QString> _got;
 };
 
 #endif /* _STDINREADER_H_ */

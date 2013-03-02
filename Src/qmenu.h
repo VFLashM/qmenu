@@ -13,14 +13,25 @@
 #include <QTextStream>
 #include <QFile>
 
+struct MenuItem {
+    QString text;
+    QString result;
+    QString hint;
+
+    MenuItem() {}
+    MenuItem(const QString& text_) : text(text_), result(text_) {}
+    MenuItem(const QString& text_, const QString& result_) : text(text_), result(result_) {}
+    MenuItem(const QString& text_, const QString& result_, const QString& hint_) : text(text_), result(result_), hint(hint_) {}
+
+    bool operator== (const MenuItem& other) const { return text == other.text && result == other.result && hint == other.hint; } 
+};
+
 class Menu : public QMainWindow {
     Q_OBJECT
-    typedef QPair<QString, QString> QStringPair;
 public:
-    Menu(int width, int height, const QList<QString>& values, const char* separator = NULL, const char* cacheFile = NULL, unsigned int maxListItems = -1)
+    Menu(int width, int height, const QList<MenuItem>& values, const char* cacheFile = NULL, unsigned int maxListItems = -1)
         : QMainWindow(0, 0)//Qt::SplashScreen | Qt::WindowStaysOnTopHint)
 		, _chosen(false)
-		, _separator(separator)
 		, _cacheFile(cacheFile)
 		, _maxListItems(maxListItems)
         , _maxWidth(_startingMaxWidth)
@@ -50,12 +61,11 @@ signals:
 	void onDone();
 
 public slots:
-	void addItem(const QString& item) {
-		QStringPair p = _value2pair(item);
-		if (!_items.contains(p)) {
-			_items.append(p);
-			QList<QStringPair> singleItemList;
-			singleItemList.append(p);
+	void addItem(const MenuItem& item) {
+		if (!_items.contains(item)) {
+			_items.append(item);
+			QList<MenuItem> singleItemList;
+			singleItemList.append(item);
 			_addItemsToWidget(singleItemList);
 		}
 
@@ -72,8 +82,10 @@ public slots:
 		QFile cache(_cacheFile);
 		if (cache.open(QFile::WriteOnly)) {
 			QTextStream outs(&cache);
-			foreach(const QString& item, _nonCacheItems) {
-				outs << item << "\n";
+			foreach(const MenuItem& item, _nonCacheItems) {
+				outs << item.text  << "\n";
+                outs << item.result << "\n";
+                outs << item.hint  << "\n";
 			}
 		}
 	}
@@ -116,21 +128,20 @@ private:
 		}
 	}
 	
-	void _addItems(const QList<QString>& values, bool fromCache) {
-		QList<QStringPair> items;
-		foreach(const QString& val, values) {
-			QStringPair p = _value2pair(val);
-			if (!_items.contains(p)) {
-				items.append(p);
+	void _addItems(const QList<MenuItem>& values, bool fromCache) {
+        QList<MenuItem> toAdd;
+		foreach(const MenuItem& val, values) {
+			if (!_items.contains(val)) {
+				toAdd.append(val);
 			}
 			if (!fromCache) {
-				if (!_nonCacheItems.contains(val)) {
+                if (!_nonCacheItems.contains(val)) {
 					_nonCacheItems.append(val);
 				}
 			}
         }
-		_items.append(items);
-		_addItemsToWidget(items);
+		_items.append(toAdd);
+		_addItemsToWidget(toAdd);
 	}
 	
 	void _loadCache() {
@@ -138,84 +149,84 @@ private:
 			QFile cache(_cacheFile);
 			if (cache.open(QFile::ReadOnly)) {
 				QTextStream ins(&cache);
-				QList<QString> lines;
+				QList<MenuItem> lines;
 				while(true) {
-					QString line = ins.readLine();
-					if (line.isNull()) {
-						break;
-					} else {
-						lines.append(line);
-					}
+					QString text   = ins.readLine();
+                    QString result = ins.readLine();
+                    QString hint   = ins.readLine();
+
+                    if (text.isNull() || result.isNull() || hint.isNull()) {
+                        break;
+                    }
+
+                    if (hint.isEmpty()) {
+                        lines.append(MenuItem(text, result));
+                    } else {
+                        lines.append(MenuItem(text, result, hint));
+                    }
 				}
 				_addItems(lines, true);
 			}
 		}
 	}
 	
-	QStringPair _value2pair(const QString& val) {
-		if (_separator && val.contains(_separator)) {
-			int idx = val.indexOf(_separator);
-			return QStringPair(val.left(idx), val.right(val.size() - idx - strlen(_separator)));
-		} else {
-			return QStringPair(val, val);
-		}
-	}
-
-    void _filterAndReorder(const QList<QStringPair>& items, QList<QStringPair>& dst) {
+	void _filterAndReorder(const QList<MenuItem>& items, QList<MenuItem>& dst) {
         dst.clear();
 
-        foreach (const QStringPair& pair, items) {
+        foreach (const MenuItem& pair, items) {
             if (!dst.contains(pair)) {
-                if (_match1(_filter, pair.second)) {
+                if (_match1(_filter, pair.text)) {
                     dst.append(pair);
                 }
             }
         }
 
-        foreach (const QStringPair& pair, items) {
+        foreach (const MenuItem& pair, items) {
             if (!dst.contains(pair)) {
-                if (_match2(_filter, pair.second)) {
+                if (_match2(_filter, pair.text)) {
                     dst.append(pair);
                 }
             }
         }
 
-        foreach (const QStringPair& pair, items) {
+        foreach (const MenuItem& pair, items) {
             if (!dst.contains(pair)) {
-                if (_match1(_filter, pair.first)) {
+                if (_match1(_filter, pair.result)) {
                     dst.append(pair);
                 }
             }
         }
 
-        foreach (const QStringPair& pair, items) {
+        foreach (const MenuItem& pair, items) {
             if (!dst.contains(pair)) {
-                if (_match2(_filter, pair.first)) {
+                if (_match2(_filter, pair.result)) {
                     dst.append(pair);
                 }
             }
         }
     }
 	
-	void _addItemsToWidget(QList<QStringPair>& items) {
+	void _addItemsToWidget(QList<MenuItem>& items) {
         if ((unsigned int)_listWidget.count() >= _maxListItems) return;
         
-        QList<QStringPair> res;
+        QList<MenuItem> res;
         _filterAndReorder(items, res);
 
-        foreach (const QStringPair& pair, res) {
-            _maxWidth = std::max(_maxWidth, pair.second.length());
+        foreach (const MenuItem& pair, res) {
+            _maxWidth = std::max(_maxWidth, pair.text.length());
         }
 
-        foreach (const QStringPair& pair, res) {
+        foreach (const MenuItem& pair, res) {
             if ((unsigned int)_listWidget.count() >= _maxListItems) return;
 
-            int marginSize = _maxWidth - pair.second.length();
+            int marginSize = _maxWidth - pair.text.length();
             QString margin(marginSize, ' ');
-            
-            QString text = pair.second + margin + " --> " + pair.first;
-            if (pair.second.isEmpty() && pair.first.isEmpty()) {
-                text = "";
+
+            QString text;
+            if (pair.hint.isNull()) {
+                text = pair.text;
+            } else {
+                text = pair.text + margin + " --> " + pair.hint;
             }
             
             QListWidgetItem* item = new QListWidgetItem(text);
@@ -226,7 +237,7 @@ private:
             font.setFixedPitch(true);
             item->setFont(font);
             
-            _widgetToContent[item] = pair.first;
+            _widgetToContent[item] = pair.result;
             _listWidget.addItem(item);
         }
 	}
@@ -277,15 +288,14 @@ private:
     }
 
 	bool _chosen;
-	const char* _separator;
 	const char* _cacheFile;
 	unsigned int _maxListItems;
     QWidget _containerWidget;
     QString _filter;
     QListWidget _listWidget;
     QLineEdit _lineEdit;
-	QList<QString> _nonCacheItems;
-    QList<QStringPair> _items;
+	QList<MenuItem> _nonCacheItems;
+    QList<MenuItem> _items;
     static const int _startingMaxWidth = 32 ;
     int _maxWidth;
     QMap<QListWidgetItem*, QString> _widgetToContent;
